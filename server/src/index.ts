@@ -8,7 +8,6 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import express from 'express';
 import cors from 'cors';
 import { initializeDatabase } from './db/schema.js';
-import { startAutoSave } from './db/connection.js';
 import booksRouter from './routes/books.js';
 import conversationsRouter from './routes/conversations.js';
 import chatRouter from './routes/chat.js';
@@ -23,7 +22,6 @@ async function main() {
   app.use(express.json());
 
   await initializeDatabase();
-  startAutoSave();
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
