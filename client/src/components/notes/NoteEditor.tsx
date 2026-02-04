@@ -13,14 +13,19 @@ export function NoteEditor({ initialContent = '', initialChapter = '', initialPa
   const [content, setContent] = useState(initialContent);
   const [chapter, setChapter] = useState(initialChapter);
   const [page, setPage] = useState(initialPage);
+  const [showError, setShowError] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      setShowError(true);
+      return;
+    }
+    const pageNum = page.trim() ? Math.max(1, Number(page)) : undefined;
     onSave({
       content: content.trim(),
       chapter: chapter.trim() || undefined,
-      page: page.trim() ? Number(page) : undefined,
+      page: pageNum,
     });
     if (!initialContent) {
       setContent('');
@@ -33,11 +38,12 @@ export function NoteEditor({ initialContent = '', initialChapter = '', initialPa
     <form onSubmit={handleSubmit} className="space-y-3">
       <textarea
         value={content}
-        onChange={e => setContent(e.target.value)}
+        onChange={e => { setContent(e.target.value); setShowError(false); }}
         placeholder="Write your note..."
         rows={3}
-        className="w-full resize-none px-4 py-3 bg-surface-raised border border-border rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent transition-colors"
+        className={`w-full resize-none px-4 py-3 bg-surface-raised border rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent transition-colors ${showError ? 'border-red-400' : 'border-border'}`}
       />
+      {showError && <p className="text-xs text-red-400">Note content is required.</p>}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <label className="text-xs text-text-secondary">Chapter</label>
@@ -53,6 +59,7 @@ export function NoteEditor({ initialContent = '', initialChapter = '', initialPa
           <label className="text-xs text-text-secondary">Page</label>
           <input
             type="number"
+            min={1}
             value={page}
             onChange={e => setPage(e.target.value)}
             placeholder="e.g. 42"

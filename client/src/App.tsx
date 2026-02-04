@@ -20,6 +20,7 @@ export default function App() {
     switchBook,
     removeActiveBook,
     updateProgress,
+    updateStatus,
   } = useActiveBooks();
 
   const handleSelectBook = useCallback(async (searchResult: BookSearchResult) => {
@@ -53,7 +54,7 @@ export default function App() {
             onRemoveBook={removeActiveBook}
           />
         }>
-          <Route path="/" element={<HomePage selectedBook={selectedBook} activeBooks={activeBooks} onSelectBook={handleSelectBook} onUpdateProgress={updateProgress} />} />
+          <Route path="/" element={<HomePage selectedBook={selectedBook} activeBooks={activeBooks} onSelectBook={handleSelectBook} onUpdateProgress={updateProgress} onUpdateStatus={updateStatus} />} />
           <Route path="/chat" element={<ChatPage selectedBook={selectedBook} />} />
           <Route path="/notes" element={<NotesPage selectedBook={selectedBook} />} />
           <Route path="/archive" element={<ArchivePage onSwitchBook={handleSwitchBook} />} />

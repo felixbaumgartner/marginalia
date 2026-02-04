@@ -12,19 +12,24 @@ export function CollectionSection({ bookId }: { bookId: number }) {
   const [note, setNote] = useState('');
   const [chapter, setChapter] = useState('');
   const [page, setPage] = useState('');
+  const [showError, setShowError] = useState(false);
   const navigate = useNavigate();
 
   const filtered = items.filter(i => i.type === activeTab);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      setShowError(true);
+      return;
+    }
+    const pageNum = page.trim() ? Math.max(1, Number(page)) : undefined;
     await addItem({
       type: activeTab,
       content: content.trim(),
       note: note.trim() || undefined,
       chapter: chapter.trim() || undefined,
-      page: page.trim() ? Number(page) : undefined,
+      page: pageNum,
     });
     setContent('');
     setNote('');
@@ -74,10 +79,11 @@ export function CollectionSection({ bookId }: { bookId: number }) {
           <input
             type="text"
             value={content}
-            onChange={e => setContent(e.target.value)}
+            onChange={e => { setContent(e.target.value); setShowError(false); }}
             placeholder={activeTab === 'vocabulary' ? 'Word or phrase...' : 'Quote from the book...'}
-            className="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent"
+            className={`w-full px-3 py-2 text-sm bg-surface-raised border rounded text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-accent ${showError ? 'border-red-400' : 'border-border'}`}
           />
+          {showError && <p className="text-xs text-red-400">{activeTab === 'vocabulary' ? 'Word is required.' : 'Quote is required.'}</p>}
           <input
             type="text"
             value={note}
@@ -95,6 +101,7 @@ export function CollectionSection({ bookId }: { bookId: number }) {
             />
             <input
               type="number"
+              min={1}
               value={page}
               onChange={e => setPage(e.target.value)}
               placeholder="Page"
@@ -151,7 +158,7 @@ export function CollectionSection({ bookId }: { bookId: number }) {
                     </svg>
                   </button>
                   <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => { if (window.confirm(`Delete this ${item.type}?`)) removeItem(item.id); }}
                     className="p-1 text-text-secondary hover:text-red-400 transition-colors"
                     title="Delete"
                   >

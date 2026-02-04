@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Book, BookSearchResult } from '@/types/book';
-import { getCurrentBooks, saveBook, setCurrentBook, removeCurrentBook, getBookDetails, updateReadingProgress } from '@/api/books';
+import { getCurrentBooks, saveBook, setCurrentBook, removeCurrentBook, getBookDetails, updateReadingProgress, updateBookStatus } from '@/api/books';
 
 export function useActiveBooks() {
   const [activeBooks, setActiveBooks] = useState<Book[]>([]);
@@ -84,6 +84,12 @@ export function useActiveBooks() {
     setActiveBooks(prev => prev.map(b => b.id === updated.id ? updated : b));
   }, [selectedBook]);
 
+  const updateStatus = useCallback(async (status: 'reading' | 'finished' | 'abandoned') => {
+    if (!selectedBook) return;
+    const updated = await updateBookStatus(selectedBook.id, status);
+    setActiveBooks(prev => prev.map(b => b.id === updated.id ? updated : b));
+  }, [selectedBook]);
+
   return {
     activeBooks,
     selectedBook,
@@ -94,6 +100,7 @@ export function useActiveBooks() {
     switchBook,
     removeActiveBook,
     updateProgress,
+    updateStatus,
     refresh: fetchActiveBooks,
   };
 }

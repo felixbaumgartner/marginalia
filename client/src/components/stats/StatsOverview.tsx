@@ -12,6 +12,18 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   );
 }
 
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatMonth(month: string): string {
+  const parts = month.split('-');
+  if (parts.length === 2) {
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const year = parts[0].slice(2);
+    return `${monthNames[monthIdx] ?? parts[1]} '${year}`;
+  }
+  return month;
+}
+
 export function StatsOverview() {
   const [stats, setStats] = useState<ReadingStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,17 +62,25 @@ export function StatsOverview() {
 
       {stats.books_by_month.length > 0 && (
         <div className="p-4 bg-surface-raised border border-border rounded-lg">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Books added by month</h3>
-          <div className="flex items-end gap-2 h-32">
-            {stats.books_by_month.map(({ month, count }) => (
-              <div key={month} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className="w-full bg-accent/60 rounded-t min-h-[4px] transition-all"
-                  style={{ height: `${(count / maxCount) * 100}%` }}
-                />
-                <span className="text-[10px] text-text-secondary">{month.slice(5)}</span>
-              </div>
-            ))}
+          <h3 className="text-sm font-medium text-text-primary mb-4">Books added by month</h3>
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col justify-between h-48 text-[10px] text-text-secondary pr-2 shrink-0">
+              <span>{maxCount}</span>
+              <span>{Math.round(maxCount / 2) || ''}</span>
+              <span>0</span>
+            </div>
+            <div className="flex items-end gap-2 flex-1 h-48 border-l border-b border-border pl-2 pb-1">
+              {stats.books_by_month.map(({ month, count }) => (
+                <div key={month} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
+                  <span className="text-xs text-text-primary font-medium">{count > 0 ? count : ''}</span>
+                  <div
+                    className="w-full bg-accent/70 rounded-t transition-all"
+                    style={{ height: count > 0 ? `max(${(count / maxCount) * 100}%, 16px)` : '0px' }}
+                  />
+                  <span className="text-[10px] text-text-secondary whitespace-nowrap">{formatMonth(month)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

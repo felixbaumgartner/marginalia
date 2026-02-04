@@ -18,7 +18,7 @@ export interface BookSearchResult {
 }
 
 export async function searchBooks(query: string): Promise<BookSearchResult[]> {
-  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=10&fields=key,title,author_name,first_publish_year,cover_edition_key,edition_key`;
+  const url = `https://openlibrary.org/search.json?title=${encodeURIComponent(query)}&limit=10&fields=key,title,author_name,first_publish_year,cover_edition_key,edition_key`;
   const response = await fetch(url);
   const data = await response.json();
 

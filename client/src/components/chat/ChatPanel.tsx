@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Message } from '@/types/message';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -14,6 +14,7 @@ export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle, 
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isStreaming, streamedContent, startStream } = useStreamResponse();
+  const [error, setError] = useState<string | null>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,6 +26,7 @@ export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle, 
 
   const handleSend = useCallback(async (content: string) => {
     if (!conversationId) return;
+    setError(null);
 
     const userMessage: Message = {
       id: Date.now(),
@@ -51,6 +53,7 @@ export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle, 
       onMessageSent(null as unknown as Message, assistantMessage);
     } catch (err) {
       console.error('Failed to get response:', err);
+      setError('Failed to get a response. Please check your API key and try again.');
     }
   }, [conversationId, startStream, onMessageSent]);
 
@@ -67,7 +70,7 @@ export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle, 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-4">
-        {messages.length === 0 && !isStreaming && (
+        {messages.length === 0 && !isStreaming && !error && (
           <EmptyState
             icon="📖"
             title={`Ask about "${bookTitle}"`}
@@ -79,6 +82,13 @@ export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle, 
         ))}
         {isStreaming && (
           <ChatMessage role="assistant" content={streamedContent} isStreaming />
+        )}
+        {error && (
+          <div className="flex justify-start mb-4">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-bl-sm">
+              <p className="text-sm text-red-400">{error}</p>
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

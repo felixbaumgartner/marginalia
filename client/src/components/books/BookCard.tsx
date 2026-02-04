@@ -28,7 +28,7 @@ export function BookCard({ book, onClick }: { book: Book; onClick: () => void })
       <div className="min-w-0 flex flex-col justify-between flex-1">
         <div>
           <div className="flex items-center gap-2">
-            <p className="font-medium text-text-primary truncate">{book.title}</p>
+            <p className="font-medium text-text-primary line-clamp-2" title={book.title}>{book.title}</p>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${statusColors[status]}`}>
               {status}
             </span>

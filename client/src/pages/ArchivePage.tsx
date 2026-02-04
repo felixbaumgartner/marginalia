@@ -9,7 +9,7 @@ export function ArchivePage({ onSwitchBook }: {
 
   const handleSelectBook = async (book: Book) => {
     await onSwitchBook(book.id);
-    navigate('/chat');
+    navigate('/');
   };
 
   return (

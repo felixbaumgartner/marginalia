@@ -40,7 +40,7 @@ export function ChatHistory({ conversations, activeId, onSelect, onDelete, onNew
                 </p>
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); onDelete(conv.id); }}
+                onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this conversation?')) onDelete(conv.id); }}
                 className="opacity-0 group-hover:opacity-100 text-text-secondary hover:text-red-400 ml-2 transition-opacity"
                 title="Delete conversation"
               >
