@@ -1,49 +1,64 @@
 import { Router } from 'express';
-import { getDb, saveDb } from '../db/connection.js';
+import { getSupabaseClient } from '../db/connection.js';
 
 const router = Router();
 
-// Get a conversation with all its messages
 router.get('/:id', async (req, res) => {
-  const db = await getDb();
-  const convStmt = db.prepare('SELECT * FROM conversations WHERE id = ?');
-  convStmt.bind([Number(req.params.id)]);
-  if (!convStmt.step()) {
-    convStmt.free();
-    return res.status(404).json({ error: 'Conversation not found' });
-  }
-  const conversation = convStmt.getAsObject();
-  convStmt.free();
+  try {
+    const supabase = getSupabaseClient();
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
 
-  const msgStmt = db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC');
-  msgStmt.bind([Number(req.params.id)]);
-  const messages: any[] = [];
-  while (msgStmt.step()) {
-    messages.push(msgStmt.getAsObject());
-  }
-  msgStmt.free();
+    if (convError) throw convError;
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
 
-  res.json({ ...conversation, messages });
+    const { data: messages, error: msgError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', req.params.id)
+      .order('created_at', { ascending: true });
+
+    if (msgError) throw msgError;
+
+    res.json({ ...conversation, messages: messages || [] });
+  } catch (error) {
+    console.error('Get conversation error:', error);
+    res.status(500).json({ error: 'Failed to get conversation' });
+  }
 });
 
-// Delete a conversation
 router.delete('/:id', async (req, res) => {
-  const db = await getDb();
-  const id = Number(req.params.id);
+  try {
+    const supabase = getSupabaseClient();
+    const { id } = req.params;
 
-  const checkStmt = db.prepare('SELECT id FROM conversations WHERE id = ?');
-  checkStmt.bind([id]);
-  if (!checkStmt.step()) {
-    checkStmt.free();
-    return res.status(404).json({ error: 'Conversation not found' });
+    const { data: conversation, error: checkError } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    res.status(500).json({ error: 'Failed to delete conversation' });
   }
-  checkStmt.free();
-
-  db.run('DELETE FROM messages WHERE conversation_id = ?', [id]);
-  db.run('DELETE FROM conversations WHERE id = ?', [id]);
-
-  saveDb();
-  res.json({ success: true });
 });
 
 export default router;

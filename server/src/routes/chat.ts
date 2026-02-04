@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDb, saveDb } from '../db/connection.js';
+import { getSupabaseClient } from '../db/connection.js';
 import { streamChatCompletion } from '../services/claude.js';
 import { buildSystemPrompt } from '../services/bookContext.js';
 
@@ -13,99 +13,108 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'conversation_id and content are required' });
     }
 
-    const db = await getDb();
+    const supabase = getSupabaseClient();
 
-    // Look up conversation
-    const convStmt = db.prepare('SELECT * FROM conversations WHERE id = ?');
-    convStmt.bind([Number(conversation_id)]);
-    if (!convStmt.step()) {
-      convStmt.free();
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', conversation_id)
+      .maybeSingle();
+
+    if (convError) throw convError;
+    if (!conversation) {
       return res.status(404).json({ error: 'Conversation not found' });
     }
-    const conversation = convStmt.getAsObject() as any;
-    convStmt.free();
 
-    // Look up book
-    const bookStmt = db.prepare('SELECT * FROM books WHERE id = ?');
-    bookStmt.bind([conversation.book_id]);
-    if (!bookStmt.step()) {
-      bookStmt.free();
+    const { data: book, error: bookError } = await supabase
+      .from('books')
+      .select('*')
+      .eq('id', conversation.book_id)
+      .maybeSingle();
+
+    if (bookError) throw bookError;
+    if (!book) {
       return res.status(404).json({ error: 'Book not found' });
     }
-    const book = bookStmt.getAsObject() as any;
-    bookStmt.free();
 
-    // Save user message
-    db.run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)',
-      [Number(conversation_id), 'user', content]);
+    const { error: insertError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id,
+        role: 'user',
+        content
+      });
 
-    // Update conversation title from first message if not set
+    if (insertError) throw insertError;
+
     if (!conversation.title) {
       const title = content.length > 80 ? content.substring(0, 80) + '...' : content;
-      db.run('UPDATE conversations SET title = ? WHERE id = ?', [title, Number(conversation_id)]);
+      await supabase
+        .from('conversations')
+        .update({ title })
+        .eq('id', conversation_id);
     }
 
-    // Get all messages for context
-    const msgStmt = db.prepare('SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC');
-    msgStmt.bind([Number(conversation_id)]);
-    const messages: { role: 'user' | 'assistant'; content: string }[] = [];
-    while (msgStmt.step()) {
-      const row = msgStmt.getAsObject() as any;
-      messages.push({ role: row.role, content: row.content });
-    }
-    msgStmt.free();
+    const { data: messages, error: msgError } = await supabase
+      .from('messages')
+      .select('role, content')
+      .eq('conversation_id', conversation_id)
+      .order('created_at', { ascending: true });
 
-    // Fetch notes for the book
-    const notesStmt = db.prepare('SELECT chapter, page, content FROM notes WHERE book_id = ? ORDER BY page ASC, created_at ASC');
-    notesStmt.bind([book.id]);
-    const notes: { chapter: string | null; page: number | null; content: string }[] = [];
-    while (notesStmt.step()) {
-      const row = notesStmt.getAsObject() as any;
-      notes.push({ chapter: row.chapter, page: row.page ? Number(row.page) : null, content: row.content });
-    }
-    notesStmt.free();
+    if (msgError) throw msgError;
 
-    // Fetch other books for cross-book connections
-    const otherBooksStmt = db.prepare('SELECT title, author, status FROM books WHERE id != ? ORDER BY updated_at DESC LIMIT 20');
-    otherBooksStmt.bind([book.id]);
-    const otherBooks: { title: string; author: string | null; status: string }[] = [];
-    while (otherBooksStmt.step()) {
-      const row = otherBooksStmt.getAsObject() as any;
-      otherBooks.push({ title: row.title, author: row.author, status: row.status ?? 'reading' });
-    }
-    otherBooksStmt.free();
+    const { data: notes, error: notesError } = await supabase
+      .from('notes')
+      .select('chapter, page, content')
+      .eq('book_id', book.id)
+      .order('page', { ascending: true });
 
-    // Build system prompt
+    if (notesError) throw notesError;
+
+    const { data: otherBooks, error: otherBooksError } = await supabase
+      .from('books')
+      .select('title, author, status')
+      .neq('id', book.id)
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    if (otherBooksError) throw otherBooksError;
+
     const systemPrompt = buildSystemPrompt({
       title: book.title,
       author: book.author,
       description: book.description,
       currentChapter: book.current_chapter ?? null,
-      currentPage: book.current_page ? Number(book.current_page) : null,
-      notes,
-      otherBooks,
+      currentPage: book.current_page ?? null,
+      notes: notes || [],
+      otherBooks: otherBooks || [],
     });
 
-    // Set up SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
     let fullResponse = '';
 
-    for await (const token of streamChatCompletion(systemPrompt, messages)) {
+    for await (const token of streamChatCompletion(systemPrompt, messages || [])) {
       fullResponse += token;
       res.write(`data: ${JSON.stringify({ token })}\n\n`);
     }
 
-    // Save assistant message
-    db.run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)',
-      [Number(conversation_id), 'assistant', fullResponse]);
+    const { error: assistantError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id,
+        role: 'assistant',
+        content: fullResponse
+      });
 
-    // Update conversation timestamp
-    db.run('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?', [Number(conversation_id)]);
+    if (assistantError) throw assistantError;
 
-    saveDb();
+    await supabase
+      .from('conversations')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', conversation_id);
 
     res.write(`data: [DONE]\n\n`);
     res.end();

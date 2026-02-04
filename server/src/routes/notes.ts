@@ -1,73 +1,69 @@
 import { Router } from 'express';
-import { getDb, saveDb } from '../db/connection.js';
+import { getSupabaseClient } from '../db/connection.js';
 
 const router = Router();
 
-// List notes for a book
 router.get('/books/:bookId/notes', async (req, res) => {
   try {
-    const db = await getDb();
-    const stmt = db.prepare('SELECT * FROM notes WHERE book_id = ? ORDER BY page ASC, created_at ASC');
-    stmt.bind([Number(req.params.bookId)]);
-    const rows: any[] = [];
-    while (stmt.step()) {
-      rows.push(stmt.getAsObject());
-    }
-    stmt.free();
-    res.json(rows);
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('book_id', req.params.bookId)
+      .order('page', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    res.json(data || []);
   } catch (error) {
     console.error('List notes error:', error);
     res.status(500).json({ error: 'Failed to list notes' });
   }
 });
 
-// Create a note
 router.post('/books/:bookId/notes', async (req, res) => {
   try {
-    const db = await getDb();
-    const bookId = Number(req.params.bookId);
+    const supabase = getSupabaseClient();
+    const bookId = req.params.bookId;
     const { content, chapter, page } = req.body;
 
     if (!content) {
       return res.status(400).json({ error: 'Content is required' });
     }
 
-    const checkStmt = db.prepare('SELECT id FROM books WHERE id = ?');
-    checkStmt.bind([bookId]);
-    if (!checkStmt.step()) {
-      checkStmt.free();
+    const { data: book, error: checkError } = await supabase
+      .from('books')
+      .select('id')
+      .eq('id', bookId)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+    if (!book) {
       return res.status(404).json({ error: 'Book not found' });
     }
-    checkStmt.free();
 
-    db.run(
-      'INSERT INTO notes (book_id, chapter, page, content) VALUES (?, ?, ?, ?)',
-      [bookId, chapter ?? null, page ?? null, content]
-    );
+    const { data, error } = await supabase
+      .from('notes')
+      .insert({
+        book_id: bookId,
+        chapter: chapter ?? null,
+        page: page ?? null,
+        content
+      })
+      .select()
+      .single();
 
-    const idStmt = db.prepare('SELECT last_insert_rowid() as id');
-    idStmt.step();
-    const { id } = idStmt.getAsObject() as any;
-    idStmt.free();
-
-    const noteStmt = db.prepare('SELECT * FROM notes WHERE id = ?');
-    noteStmt.bind([id]);
-    noteStmt.step();
-    const note = noteStmt.getAsObject();
-    noteStmt.free();
-
-    saveDb();
-    res.status(201).json(note);
+    if (error) throw error;
+    res.status(201).json(data);
   } catch (error) {
     console.error('Create note error:', error);
     res.status(500).json({ error: 'Failed to create note' });
   }
 });
 
-// Update a note
 router.put('/:id', async (req, res) => {
   try {
-    const db = await getDb();
+    const supabase = getSupabaseClient();
     const { id } = req.params;
     const { content, chapter, page } = req.body;
 
@@ -75,49 +71,59 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Content is required' });
     }
 
-    const checkStmt = db.prepare('SELECT id FROM notes WHERE id = ?');
-    checkStmt.bind([Number(id)]);
-    if (!checkStmt.step()) {
-      checkStmt.free();
+    const { data: note, error: checkError } = await supabase
+      .from('notes')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+    if (!note) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    checkStmt.free();
 
-    db.run(
-      'UPDATE notes SET content = ?, chapter = ?, page = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [content, chapter ?? null, page ?? null, Number(id)]
-    );
+    const { data, error } = await supabase
+      .from('notes')
+      .update({
+        content,
+        chapter: chapter ?? null,
+        page: page ?? null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const stmt = db.prepare('SELECT * FROM notes WHERE id = ?');
-    stmt.bind([Number(id)]);
-    stmt.step();
-    const note = stmt.getAsObject();
-    stmt.free();
-
-    saveDb();
-    res.json(note);
+    if (error) throw error;
+    res.json(data);
   } catch (error) {
     console.error('Update note error:', error);
     res.status(500).json({ error: 'Failed to update note' });
   }
 });
 
-// Delete a note
 router.delete('/:id', async (req, res) => {
   try {
-    const db = await getDb();
+    const supabase = getSupabaseClient();
     const { id } = req.params;
 
-    const checkStmt = db.prepare('SELECT id FROM notes WHERE id = ?');
-    checkStmt.bind([Number(id)]);
-    if (!checkStmt.step()) {
-      checkStmt.free();
+    const { data: note, error: checkError } = await supabase
+      .from('notes')
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (checkError) throw checkError;
+    if (!note) {
       return res.status(404).json({ error: 'Note not found' });
     }
-    checkStmt.free();
 
-    db.run('DELETE FROM notes WHERE id = ?', [Number(id)]);
-    saveDb();
+    const { error } = await supabase
+      .from('notes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
     res.json({ success: true });
   } catch (error) {
     console.error('Delete note error:', error);
