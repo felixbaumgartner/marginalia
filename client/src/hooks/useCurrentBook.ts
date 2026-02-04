@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Book, BookSearchResult } from '@/types/book';
-import { getCurrentBook, saveBook, setCurrentBook, getBookDetails } from '@/api/books';
+import { getCurrentBook, saveBook, setCurrentBook, getBookDetails, updateReadingProgress } from '@/api/books';
 
 export function useCurrentBook() {
   const [book, setBook] = useState<Book | null>(null);
@@ -53,5 +53,11 @@ export function useCurrentBook() {
     return current;
   }, []);
 
-  return { book, loading, selectBook, switchBook, refresh: fetchCurrent };
+  const updateProgress = useCallback(async (progress: { current_chapter?: string | null; current_page?: number | null }) => {
+    if (!book) return;
+    const updated = await updateReadingProgress(book.id, progress);
+    setBook(updated);
+  }, [book]);
+
+  return { book, loading, selectBook, switchBook, updateProgress, refresh: fetchCurrent };
 }

@@ -16,6 +16,11 @@ export interface Book {
   description: string | null;
   cover_url: string | null;
   is_current: number;
+  current_chapter: string | null;
+  current_page: number | null;
+  status: 'reading' | 'finished' | 'abandoned' | null;
+  started_at: string | null;
+  finished_at: string | null;
   created_at: string;
   updated_at: string;
   last_message_at?: string | null;

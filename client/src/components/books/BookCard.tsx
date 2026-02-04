@@ -1,6 +1,14 @@
 import type { Book } from '@/types/book';
 
+const statusColors: Record<string, string> = {
+  reading: 'bg-green-500/10 text-green-400',
+  finished: 'bg-blue-500/10 text-blue-400',
+  abandoned: 'bg-red-500/10 text-red-400',
+};
+
 export function BookCard({ book, onClick }: { book: Book; onClick: () => void }) {
+  const status = book.status ?? 'reading';
+
   return (
     <button
       onClick={onClick}
@@ -17,16 +25,24 @@ export function BookCard({ book, onClick }: { book: Book; onClick: () => void })
           <span className="text-text-secondary text-xs text-center">No cover</span>
         </div>
       )}
-      <div className="min-w-0 flex flex-col justify-between">
+      <div className="min-w-0 flex flex-col justify-between flex-1">
         <div>
-          <p className="font-medium text-text-primary truncate">{book.title}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-text-primary truncate">{book.title}</p>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${statusColors[status]}`}>
+              {status}
+            </span>
+          </div>
           <p className="text-sm text-text-secondary">{book.author}</p>
         </div>
-        {book.last_message_at && (
-          <p className="text-xs text-text-secondary">
-            Last read: {new Date(book.last_message_at).toLocaleDateString()}
-          </p>
-        )}
+        <div className="flex items-center gap-3 text-xs text-text-secondary">
+          {book.last_message_at && (
+            <span>Last read: {new Date(book.last_message_at).toLocaleDateString()}</span>
+          )}
+          {book.started_at && (
+            <span>Started: {new Date(book.started_at).toLocaleDateString()}</span>
+          )}
+        </div>
       </div>
     </button>
   );

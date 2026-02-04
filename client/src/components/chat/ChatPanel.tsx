@@ -5,11 +5,12 @@ import { ChatInput } from './ChatInput';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useStreamResponse } from '@/hooks/useStreamResponse';
 
-export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle }: {
+export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle, initialValue }: {
   conversationId: number | null;
   messages: Message[];
   onMessageSent: (userMessage: Message, assistantMessage: Message) => void;
   bookTitle: string;
+  initialValue?: string;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isStreaming, streamedContent, startStream } = useStreamResponse();
@@ -81,7 +82,7 @@ export function ChatPanel({ conversationId, messages, onMessageSent, bookTitle }
         )}
         <div ref={messagesEndRef} />
       </div>
-      <ChatInput onSend={handleSend} disabled={isStreaming} />
+      <ChatInput onSend={handleSend} disabled={isStreaming} initialValue={initialValue} />
     </div>
   );
 }

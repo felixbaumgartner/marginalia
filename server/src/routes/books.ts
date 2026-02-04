@@ -96,7 +96,7 @@ router.put('/:id/current', async (req, res) => {
   const { id } = req.params;
 
   db.run('UPDATE books SET is_current = 0 WHERE is_current = 1');
-  db.run('UPDATE books SET is_current = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [Number(id)]);
+  db.run('UPDATE books SET is_current = 1, status = \'reading\', updated_at = CURRENT_TIMESTAMP, started_at = COALESCE(started_at, CURRENT_TIMESTAMP) WHERE id = ?', [Number(id)]);
 
   const stmt = db.prepare('SELECT * FROM books WHERE id = ?');
   stmt.bind([Number(id)]);
@@ -109,6 +109,98 @@ router.put('/:id/current', async (req, res) => {
 
   saveDb();
   res.json(book);
+});
+
+// Update book status
+router.put('/:id/status', async (req, res) => {
+  try {
+    const db = await getDb();
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['reading', 'finished', 'abandoned'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be "reading", "finished", or "abandoned"' });
+    }
+
+    if (status === 'finished' || status === 'abandoned') {
+      db.run('UPDATE books SET status = ?, finished_at = CURRENT_TIMESTAMP, is_current = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [status, Number(id)]);
+    } else {
+      db.run('UPDATE books SET status = ?, finished_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [status, Number(id)]);
+    }
+
+    const stmt = db.prepare('SELECT * FROM books WHERE id = ?');
+    stmt.bind([Number(id)]);
+    if (!stmt.step()) {
+      stmt.free();
+      return res.status(404).json({ error: 'Book not found' });
+    }
+    const book = stmt.getAsObject();
+    stmt.free();
+
+    saveDb();
+    res.json(book);
+  } catch (error) {
+    console.error('Status update error:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// Get reading stats
+router.get('/stats/overview', async (_req, res) => {
+  try {
+    const db = await getDb();
+
+    const totalStmt = db.prepare('SELECT COUNT(*) as count FROM books');
+    totalStmt.step();
+    const totalBooks = (totalStmt.getAsObject() as any).count;
+    totalStmt.free();
+
+    const readingStmt = db.prepare("SELECT COUNT(*) as count FROM books WHERE status = 'reading' OR status IS NULL");
+    readingStmt.step();
+    const booksReading = (readingStmt.getAsObject() as any).count;
+    readingStmt.free();
+
+    const finishedStmt = db.prepare("SELECT COUNT(*) as count FROM books WHERE status = 'finished'");
+    finishedStmt.step();
+    const booksFinished = (finishedStmt.getAsObject() as any).count;
+    finishedStmt.free();
+
+    const abandonedStmt = db.prepare("SELECT COUNT(*) as count FROM books WHERE status = 'abandoned'");
+    abandonedStmt.step();
+    const booksAbandoned = (abandonedStmt.getAsObject() as any).count;
+    abandonedStmt.free();
+
+    const convsStmt = db.prepare('SELECT COUNT(*) as count FROM conversations');
+    convsStmt.step();
+    const totalConversations = (convsStmt.getAsObject() as any).count;
+    convsStmt.free();
+
+    const msgsStmt = db.prepare('SELECT COUNT(*) as count FROM messages');
+    msgsStmt.step();
+    const totalMessages = (msgsStmt.getAsObject() as any).count;
+    msgsStmt.free();
+
+    const monthStmt = db.prepare("SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as count FROM books GROUP BY month ORDER BY month DESC LIMIT 12");
+    const booksByMonth: { month: string; count: number }[] = [];
+    while (monthStmt.step()) {
+      const row = monthStmt.getAsObject() as any;
+      booksByMonth.push({ month: row.month, count: row.count });
+    }
+    monthStmt.free();
+
+    res.json({
+      total_books: totalBooks,
+      books_reading: booksReading,
+      books_finished: booksFinished,
+      books_abandoned: booksAbandoned,
+      total_conversations: totalConversations,
+      total_messages: totalMessages,
+      books_by_month: booksByMonth.reverse(),
+    });
+  } catch (error) {
+    console.error('Stats error:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
 });
 
 // List conversations for a book
@@ -154,6 +246,35 @@ router.post('/:bookId/conversations', async (req, res) => {
   res.status(201).json(conversation);
 });
 
+// Update reading progress
+router.put('/:id/progress', async (req, res) => {
+  try {
+    const db = await getDb();
+    const { id } = req.params;
+    const { current_chapter, current_page } = req.body;
+
+    db.run(
+      'UPDATE books SET current_chapter = ?, current_page = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [current_chapter ?? null, current_page ?? null, Number(id)]
+    );
+
+    const stmt = db.prepare('SELECT * FROM books WHERE id = ?');
+    stmt.bind([Number(id)]);
+    if (!stmt.step()) {
+      stmt.free();
+      return res.status(404).json({ error: 'Book not found' });
+    }
+    const book = stmt.getAsObject();
+    stmt.free();
+
+    saveDb();
+    res.json(book);
+  } catch (error) {
+    console.error('Progress update error:', error);
+    res.status(500).json({ error: 'Failed to update reading progress' });
+  }
+});
+
 // Delete a book and its conversations
 router.delete('/:id', async (req, res) => {
   const db = await getDb();
@@ -181,6 +302,8 @@ router.delete('/:id', async (req, res) => {
     db.run('DELETE FROM messages WHERE conversation_id = ?', [convId]);
   }
   db.run('DELETE FROM conversations WHERE book_id = ?', [Number(id)]);
+  db.run('DELETE FROM notes WHERE book_id = ?', [Number(id)]);
+  db.run('DELETE FROM collections WHERE book_id = ?', [Number(id)]);
   db.run('DELETE FROM books WHERE id = ?', [Number(id)]);
 
   saveDb();

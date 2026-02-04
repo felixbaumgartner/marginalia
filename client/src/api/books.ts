@@ -1,5 +1,6 @@
 import type { Book, BookSearchResult } from '@/types/book';
 import type { Conversation } from '@/types/conversation';
+import type { ReadingStats } from '@/types/stats';
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
 export function searchBooks(query: string): Promise<BookSearchResult[]> {
@@ -35,6 +36,21 @@ export function setCurrentBook(id: number): Promise<Book> {
 
 export function deleteBook(id: number): Promise<void> {
   return apiDelete(`/books/${id}`);
+}
+
+export function updateReadingProgress(bookId: number, progress: {
+  current_chapter?: string | null;
+  current_page?: number | null;
+}): Promise<Book> {
+  return apiPut(`/books/${bookId}/progress`, progress);
+}
+
+export function updateBookStatus(bookId: number, status: 'reading' | 'finished' | 'abandoned'): Promise<Book> {
+  return apiPut(`/books/${bookId}/status`, { status });
+}
+
+export function getReadingStats(): Promise<ReadingStats> {
+  return apiGet('/books/stats/overview');
 }
 
 export function getBookConversations(bookId: number): Promise<Conversation[]> {

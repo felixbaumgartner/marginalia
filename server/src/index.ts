@@ -12,6 +12,8 @@ import { startAutoSave } from './db/connection.js';
 import booksRouter from './routes/books.js';
 import conversationsRouter from './routes/conversations.js';
 import chatRouter from './routes/chat.js';
+import notesRouter from './routes/notes.js';
+import collectionsRouter from './routes/collections.js';
 
 async function main() {
   const app = express();
@@ -30,6 +32,8 @@ async function main() {
   app.use('/api/books', booksRouter);
   app.use('/api/conversations', conversationsRouter);
   app.use('/api/chat', chatRouter);
+  app.use('/api/notes', notesRouter);
+  app.use('/api/collections', collectionsRouter);
 
   app.listen(PORT, () => {
     console.log(`Marginalia server running on http://localhost:${PORT}`);

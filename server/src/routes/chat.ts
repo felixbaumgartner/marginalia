@@ -55,11 +55,35 @@ router.post('/', async (req, res) => {
     }
     msgStmt.free();
 
+    // Fetch notes for the book
+    const notesStmt = db.prepare('SELECT chapter, page, content FROM notes WHERE book_id = ? ORDER BY page ASC, created_at ASC');
+    notesStmt.bind([book.id]);
+    const notes: { chapter: string | null; page: number | null; content: string }[] = [];
+    while (notesStmt.step()) {
+      const row = notesStmt.getAsObject() as any;
+      notes.push({ chapter: row.chapter, page: row.page ? Number(row.page) : null, content: row.content });
+    }
+    notesStmt.free();
+
+    // Fetch other books for cross-book connections
+    const otherBooksStmt = db.prepare('SELECT title, author, status FROM books WHERE id != ? ORDER BY updated_at DESC LIMIT 20');
+    otherBooksStmt.bind([book.id]);
+    const otherBooks: { title: string; author: string | null; status: string }[] = [];
+    while (otherBooksStmt.step()) {
+      const row = otherBooksStmt.getAsObject() as any;
+      otherBooks.push({ title: row.title, author: row.author, status: row.status ?? 'reading' });
+    }
+    otherBooksStmt.free();
+
     // Build system prompt
     const systemPrompt = buildSystemPrompt({
       title: book.title,
       author: book.author,
       description: book.description,
+      currentChapter: book.current_chapter ?? null,
+      currentPage: book.current_page ? Number(book.current_page) : null,
+      notes,
+      otherBooks,
     });
 
     // Set up SSE

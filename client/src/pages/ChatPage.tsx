@@ -5,10 +5,12 @@ import { ChatPanel } from '@/components/chat/ChatPanel';
 import { ChatHistory } from '@/components/chat/ChatHistory';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useConversation } from '@/hooks/useConversation';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export function ChatPage({ currentBook }: { currentBook: Book | null }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefill = (location.state as { prefill?: string } | null)?.prefill;
   const {
     conversations,
     activeConversation,
@@ -75,6 +77,7 @@ export function ChatPage({ currentBook }: { currentBook: Book | null }) {
           messages={messages}
           onMessageSent={handleMessageSent}
           bookTitle={currentBook.title}
+          initialValue={prefill}
         />
       </div>
     </div>

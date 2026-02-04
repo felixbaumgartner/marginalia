@@ -2,9 +2,10 @@ import { BookSearch } from '@/components/books/BookSearch';
 import { BookDetail } from '@/components/books/BookDetail';
 import type { Book, BookSearchResult } from '@/types/book';
 
-export function HomePage({ currentBook, onSelectBook }: {
+export function HomePage({ currentBook, onSelectBook, onUpdateProgress }: {
   currentBook: Book | null;
   onSelectBook: (book: BookSearchResult) => Promise<void>;
+  onUpdateProgress: (progress: { current_chapter?: string | null; current_page?: number | null }) => Promise<void>;
 }) {
   return (
     <div className="h-full overflow-y-auto p-8">
@@ -24,7 +25,7 @@ export function HomePage({ currentBook, onSelectBook }: {
 
         {currentBook && (
           <div>
-            <BookDetail book={currentBook} />
+            <BookDetail book={currentBook} onUpdateProgress={onUpdateProgress} />
           </div>
         )}
       </div>
