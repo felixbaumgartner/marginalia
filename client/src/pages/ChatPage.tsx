@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { useConversation } from '@/hooks/useConversation';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-export function ChatPage({ currentBook }: { currentBook: Book | null }) {
+export function ChatPage({ selectedBook }: { selectedBook: Book | null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const prefill = (location.state as { prefill?: string } | null)?.prefill;
@@ -20,13 +20,13 @@ export function ChatPage({ currentBook }: { currentBook: Book | null }) {
     loadConversation,
     removeConversation,
     addMessage,
-  } = useConversation(currentBook?.id ?? null);
+  } = useConversation(selectedBook?.id ?? null);
 
   useEffect(() => {
-    if (currentBook) {
+    if (selectedBook) {
       fetchConversations();
     }
-  }, [currentBook, fetchConversations]);
+  }, [selectedBook, fetchConversations]);
 
   const handleNewConversation = useCallback(async () => {
     await startNewConversation();
@@ -42,7 +42,7 @@ export function ChatPage({ currentBook }: { currentBook: Book | null }) {
     }
   }, [addMessage, fetchConversations]);
 
-  if (!currentBook) {
+  if (!selectedBook) {
     return (
       <div className="h-full flex flex-col items-center justify-center">
         <EmptyState
@@ -76,7 +76,7 @@ export function ChatPage({ currentBook }: { currentBook: Book | null }) {
           conversationId={activeConversation?.id ?? null}
           messages={messages}
           onMessageSent={handleMessageSent}
-          bookTitle={currentBook.title}
+          bookTitle={selectedBook.title}
           initialValue={prefill}
         />
       </div>

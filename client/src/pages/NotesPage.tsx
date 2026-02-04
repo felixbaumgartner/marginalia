@@ -6,10 +6,10 @@ import { NotesList } from '@/components/notes/NotesList';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { EmptyState } from '@/components/common/EmptyState';
 
-export function NotesPage({ currentBook }: { currentBook: Book | null }) {
-  const { notes, loading, addNote, editNote, removeNote } = useNotes(currentBook?.id ?? null);
+export function NotesPage({ selectedBook }: { selectedBook: Book | null }) {
+  const { notes, loading, addNote, editNote, removeNote } = useNotes(selectedBook?.id ?? null);
 
-  if (!currentBook) {
+  if (!selectedBook) {
     return (
       <div className="h-full flex items-center justify-center">
         <EmptyState
@@ -30,7 +30,7 @@ export function NotesPage({ currentBook }: { currentBook: Book | null }) {
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-text-primary mb-1">Notes</h2>
           <p className="text-text-secondary text-sm">
-            Your annotations for <span className="text-text-primary font-medium">{currentBook.title}</span>
+            Your annotations for <span className="text-text-primary font-medium">{selectedBook.title}</span>
           </p>
         </div>
 

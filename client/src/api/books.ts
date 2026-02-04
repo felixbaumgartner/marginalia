@@ -15,7 +15,7 @@ export function getAllBooks(): Promise<Book[]> {
   return apiGet('/books');
 }
 
-export function getCurrentBook(): Promise<Book | null> {
+export function getCurrentBooks(): Promise<Book[]> {
   return apiGet('/books/current');
 }
 
@@ -32,6 +32,10 @@ export function saveBook(book: {
 
 export function setCurrentBook(id: number): Promise<Book> {
   return apiPut(`/books/${id}/current`);
+}
+
+export function removeCurrentBook(id: number): Promise<Book> {
+  return apiPut(`/books/${id}/uncurrent`);
 }
 
 export function deleteBook(id: number): Promise<void> {

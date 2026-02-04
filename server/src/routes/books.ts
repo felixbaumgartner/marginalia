@@ -49,13 +49,16 @@ router.get('/', async (_req, res) => {
   res.json(rows);
 });
 
-// Get currently reading book
+// Get all currently reading books
 router.get('/current', async (_req, res) => {
   const db = await getDb();
-  const stmt = db.prepare('SELECT * FROM books WHERE is_current = 1');
-  const book = stmt.step() ? stmt.getAsObject() : null;
+  const stmt = db.prepare('SELECT * FROM books WHERE is_current = 1 ORDER BY updated_at DESC');
+  const rows: any[] = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
   stmt.free();
-  res.json(book);
+  res.json(rows);
 });
 
 // Save a new book
@@ -90,13 +93,32 @@ router.post('/', async (req, res) => {
   res.status(201).json(book);
 });
 
-// Set a book as currently reading
+// Add a book to currently reading
 router.put('/:id/current', async (req, res) => {
   const db = await getDb();
   const { id } = req.params;
 
-  db.run('UPDATE books SET is_current = 0 WHERE is_current = 1');
   db.run('UPDATE books SET is_current = 1, status = \'reading\', updated_at = CURRENT_TIMESTAMP, started_at = COALESCE(started_at, CURRENT_TIMESTAMP) WHERE id = ?', [Number(id)]);
+
+  const stmt = db.prepare('SELECT * FROM books WHERE id = ?');
+  stmt.bind([Number(id)]);
+  if (!stmt.step()) {
+    stmt.free();
+    return res.status(404).json({ error: 'Book not found' });
+  }
+  const book = stmt.getAsObject();
+  stmt.free();
+
+  saveDb();
+  res.json(book);
+});
+
+// Remove a book from currently reading
+router.put('/:id/uncurrent', async (req, res) => {
+  const db = await getDb();
+  const { id } = req.params;
+
+  db.run('UPDATE books SET is_current = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [Number(id)]);
 
   const stmt = db.prepare('SELECT * FROM books WHERE id = ?');
   stmt.bind([Number(id)]);

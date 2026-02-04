@@ -2,8 +2,9 @@ import { BookSearch } from '@/components/books/BookSearch';
 import { BookDetail } from '@/components/books/BookDetail';
 import type { Book, BookSearchResult } from '@/types/book';
 
-export function HomePage({ currentBook, onSelectBook, onUpdateProgress }: {
-  currentBook: Book | null;
+export function HomePage({ selectedBook, activeBooks, onSelectBook, onUpdateProgress }: {
+  selectedBook: Book | null;
+  activeBooks: Book[];
   onSelectBook: (book: BookSearchResult) => Promise<void>;
   onUpdateProgress: (progress: { current_chapter?: string | null; current_page?: number | null }) => Promise<void>;
 }) {
@@ -12,7 +13,7 @@ export function HomePage({ currentBook, onSelectBook, onUpdateProgress }: {
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-text-primary mb-2">
-            {currentBook ? 'Switch books' : 'Find a book'}
+            {activeBooks.length > 0 ? 'Add another book' : 'Find a book'}
           </h2>
           <p className="text-text-secondary">
             Search for a book to start asking questions about it.
@@ -23,9 +24,9 @@ export function HomePage({ currentBook, onSelectBook, onUpdateProgress }: {
           <BookSearch onSelect={onSelectBook} />
         </div>
 
-        {currentBook && (
+        {selectedBook && (
           <div>
-            <BookDetail book={currentBook} onUpdateProgress={onUpdateProgress} />
+            <BookDetail book={selectedBook} onUpdateProgress={onUpdateProgress} />
           </div>
         )}
       </div>

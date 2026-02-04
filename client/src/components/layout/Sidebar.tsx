@@ -1,7 +1,15 @@
 import { NavLink } from 'react-router-dom';
 import type { Book } from '@/types/book';
 
-export function Sidebar({ currentBook }: { currentBook: Book | null }) {
+interface SidebarProps {
+  activeBooks: Book[];
+  selectedBook: Book | null;
+  selectedBookId: number | null;
+  onSelectBookId: (id: number) => void;
+  onRemoveBook: (id: number) => Promise<void>;
+}
+
+export function Sidebar({ activeBooks, selectedBookId, onSelectBookId, onRemoveBook }: SidebarProps) {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
       isActive
@@ -49,27 +57,50 @@ export function Sidebar({ currentBook }: { currentBook: Book | null }) {
         </NavLink>
       </nav>
 
-      {currentBook && (
-        <div className="p-3 border-t border-border">
+      {activeBooks.length > 0 && (
+        <div className="p-3 border-t border-border overflow-y-auto max-h-60">
           <p className="text-xs text-text-secondary mb-2">Currently reading</p>
-          <div className="flex items-center gap-2">
-            {currentBook.cover_url ? (
-              <img src={currentBook.cover_url} alt="" className="w-8 h-12 rounded object-cover shrink-0" />
-            ) : (
-              <div className="w-8 h-12 bg-surface-overlay rounded shrink-0" />
-            )}
-            <div className="min-w-0">
-              <p className="text-sm text-text-primary truncate font-medium">{currentBook.title}</p>
-              <p className="text-xs text-text-secondary truncate">{currentBook.author}</p>
-              {(currentBook.current_chapter || currentBook.current_page) && (
-                <p className="text-xs text-accent/70 truncate mt-0.5">
-                  {[
-                    currentBook.current_chapter ? `Ch. ${currentBook.current_chapter}` : null,
-                    currentBook.current_page ? `p. ${currentBook.current_page}` : null,
-                  ].filter(Boolean).join(', ')}
-                </p>
-              )}
-            </div>
+          <div className="space-y-1">
+            {activeBooks.map(book => (
+              <button
+                key={book.id}
+                onClick={() => onSelectBookId(book.id)}
+                className={`flex items-center gap-2 w-full p-1.5 rounded-lg text-left transition-colors group ${
+                  selectedBookId === book.id
+                    ? 'bg-accent/10 ring-1 ring-accent/30'
+                    : 'hover:bg-surface-overlay'
+                }`}
+              >
+                {book.cover_url ? (
+                  <img src={book.cover_url} alt="" className="w-7 h-10 rounded object-cover shrink-0" />
+                ) : (
+                  <div className="w-7 h-10 bg-surface-overlay rounded shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className={`text-xs truncate font-medium ${selectedBookId === book.id ? 'text-accent' : 'text-text-primary'}`}>
+                    {book.title}
+                  </p>
+                  <p className="text-[10px] text-text-secondary truncate">{book.author}</p>
+                  {(book.current_chapter || book.current_page) && (
+                    <p className="text-[10px] text-accent/70 truncate">
+                      {[
+                        book.current_chapter ? `Ch. ${book.current_chapter}` : null,
+                        book.current_page ? `p. ${book.current_page}` : null,
+                      ].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <span
+                  onClick={(e) => { e.stopPropagation(); onRemoveBook(book.id); }}
+                  className="p-0.5 opacity-0 group-hover:opacity-100 text-text-secondary hover:text-red-400 transition-all shrink-0"
+                  title="Remove from reading list"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}

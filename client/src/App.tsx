@@ -6,11 +6,21 @@ import { ChatPage } from '@/pages/ChatPage';
 import { ArchivePage } from '@/pages/ArchivePage';
 import { NotesPage } from '@/pages/NotesPage';
 import { StatsPage } from '@/pages/StatsPage';
-import { useCurrentBook } from '@/hooks/useCurrentBook';
+import { useActiveBooks } from '@/hooks/useCurrentBook';
 import type { BookSearchResult } from '@/types/book';
 
 export default function App() {
-  const { book: currentBook, loading, selectBook, switchBook, updateProgress } = useCurrentBook();
+  const {
+    activeBooks,
+    selectedBook,
+    selectedBookId,
+    setSelectedBookId,
+    loading,
+    selectBook,
+    switchBook,
+    removeActiveBook,
+    updateProgress,
+  } = useActiveBooks();
 
   const handleSelectBook = useCallback(async (searchResult: BookSearchResult) => {
     await selectBook(searchResult);
@@ -34,10 +44,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<AppShell currentBook={currentBook} />}>
-          <Route path="/" element={<HomePage currentBook={currentBook} onSelectBook={handleSelectBook} onUpdateProgress={updateProgress} />} />
-          <Route path="/chat" element={<ChatPage currentBook={currentBook} />} />
-          <Route path="/notes" element={<NotesPage currentBook={currentBook} />} />
+        <Route element={
+          <AppShell
+            activeBooks={activeBooks}
+            selectedBook={selectedBook}
+            selectedBookId={selectedBookId}
+            onSelectBookId={setSelectedBookId}
+            onRemoveBook={removeActiveBook}
+          />
+        }>
+          <Route path="/" element={<HomePage selectedBook={selectedBook} activeBooks={activeBooks} onSelectBook={handleSelectBook} onUpdateProgress={updateProgress} />} />
+          <Route path="/chat" element={<ChatPage selectedBook={selectedBook} />} />
+          <Route path="/notes" element={<NotesPage selectedBook={selectedBook} />} />
           <Route path="/archive" element={<ArchivePage onSwitchBook={handleSwitchBook} />} />
           <Route path="/stats" element={<StatsPage />} />
         </Route>

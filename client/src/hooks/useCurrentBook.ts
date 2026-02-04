@@ -1,28 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Book, BookSearchResult } from '@/types/book';
-import { getCurrentBook, saveBook, setCurrentBook, getBookDetails, updateReadingProgress } from '@/api/books';
+import { getCurrentBooks, saveBook, setCurrentBook, removeCurrentBook, getBookDetails, updateReadingProgress } from '@/api/books';
 
-export function useCurrentBook() {
-  const [book, setBook] = useState<Book | null>(null);
+export function useActiveBooks() {
+  const [activeBooks, setActiveBooks] = useState<Book[]>([]);
+  const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchCurrent = useCallback(async () => {
+  const selectedBook = useMemo(
+    () => activeBooks.find(b => b.id === selectedBookId) ?? activeBooks[0] ?? null,
+    [activeBooks, selectedBookId]
+  );
+
+  const fetchActiveBooks = useCallback(async () => {
     try {
-      const current = await getCurrentBook();
-      setBook(current);
+      const books = await getCurrentBooks();
+      setActiveBooks(books);
+      // Auto-select first book if nothing selected or selected book no longer active
+      setSelectedBookId(prev => {
+        if (prev && books.some(b => b.id === prev)) return prev;
+        return books[0]?.id ?? null;
+      });
     } catch (err) {
-      console.error('Failed to fetch current book:', err);
+      console.error('Failed to fetch active books:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchCurrent();
-  }, [fetchCurrent]);
+    fetchActiveBooks();
+  }, [fetchActiveBooks]);
 
   const selectBook = useCallback(async (searchResult: BookSearchResult) => {
-    // Fetch description
     let description: string | null = null;
     try {
       const details = await getBookDetails(searchResult.workId);
@@ -31,7 +41,6 @@ export function useCurrentBook() {
       // ok without description
     }
 
-    // Save book
     const saved = await saveBook({
       ol_work_id: searchResult.workId,
       ol_edition_id: searchResult.editionId,
@@ -41,23 +50,50 @@ export function useCurrentBook() {
       cover_url: searchResult.coverUrl,
     });
 
-    // Set as current
     const current = await setCurrentBook(saved.id);
-    setBook(current);
+    setActiveBooks(prev => {
+      const exists = prev.some(b => b.id === current.id);
+      return exists ? prev.map(b => b.id === current.id ? current : b) : [current, ...prev];
+    });
+    setSelectedBookId(current.id);
     return current;
   }, []);
 
   const switchBook = useCallback(async (bookId: number) => {
     const current = await setCurrentBook(bookId);
-    setBook(current);
+    setActiveBooks(prev => {
+      const exists = prev.some(b => b.id === current.id);
+      return exists ? prev.map(b => b.id === current.id ? current : b) : [current, ...prev];
+    });
+    setSelectedBookId(current.id);
     return current;
   }, []);
 
-  const updateProgress = useCallback(async (progress: { current_chapter?: string | null; current_page?: number | null }) => {
-    if (!book) return;
-    const updated = await updateReadingProgress(book.id, progress);
-    setBook(updated);
-  }, [book]);
+  const removeActiveBook = useCallback(async (bookId: number) => {
+    await removeCurrentBook(bookId);
+    setActiveBooks(prev => prev.filter(b => b.id !== bookId));
+    setSelectedBookId(prev => {
+      if (prev === bookId) return null; // will auto-resolve to first via useMemo
+      return prev;
+    });
+  }, []);
 
-  return { book, loading, selectBook, switchBook, updateProgress, refresh: fetchCurrent };
+  const updateProgress = useCallback(async (progress: { current_chapter?: string | null; current_page?: number | null }) => {
+    if (!selectedBook) return;
+    const updated = await updateReadingProgress(selectedBook.id, progress);
+    setActiveBooks(prev => prev.map(b => b.id === updated.id ? updated : b));
+  }, [selectedBook]);
+
+  return {
+    activeBooks,
+    selectedBook,
+    selectedBookId,
+    setSelectedBookId,
+    loading,
+    selectBook,
+    switchBook,
+    removeActiveBook,
+    updateProgress,
+    refresh: fetchActiveBooks,
+  };
 }
