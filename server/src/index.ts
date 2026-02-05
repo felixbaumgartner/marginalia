@@ -33,6 +33,13 @@ async function main() {
   app.use('/api/notes', notesRouter);
   app.use('/api/collections', collectionsRouter);
 
+  const clientDistPath = path.resolve(__dirname, '../../client/dist');
+  app.use(express.static(clientDistPath));
+
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+
   app.listen(PORT, () => {
     console.log(`Marginalia server running on http://localhost:${PORT}`);
   });
