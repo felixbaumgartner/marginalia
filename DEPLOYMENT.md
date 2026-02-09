@@ -164,6 +164,8 @@ No additional database setup is required.
   - `SUPABASE_URL` (required)
   - `SUPABASE_ANON_KEY` (required)
 - Test locally: `cd server && node dist/index.js`
+- If you see "Missing required environment variables", set them in your platform's dashboard
+- Server now binds to `0.0.0.0` for compatibility with all deployment platforms
 
 **API requests failing:**
 - Check server logs for errors

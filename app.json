@@ -1,0 +1,31 @@
+{
+  "name": "Marginalia",
+  "description": "Personal AI reading companion - chat with Claude about your books",
+  "repository": "https://github.com/yourusername/marginalia",
+  "logo": "",
+  "keywords": ["reading", "ai", "books", "claude", "notes"],
+  "success_url": "/",
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "env": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Your Anthropic API key from https://console.anthropic.com/settings/keys",
+      "required": true
+    },
+    "SUPABASE_URL": {
+      "description": "Your Supabase project URL",
+      "required": true
+    },
+    "SUPABASE_ANON_KEY": {
+      "description": "Your Supabase anonymous key",
+      "required": true
+    },
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    }
+  }
+}
